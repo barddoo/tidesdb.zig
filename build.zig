@@ -115,6 +115,7 @@ fn buildSnappy(
     const t = target.result;
     const windows = t.os.tag == .windows;
     const posix = !windows;
+    const x86 = t.cpu.arch == .x86_64;
 
     const config = b.addConfigHeader(.{
         .style = .{ .cmake = dep.path("cmake/config.h.in") },
@@ -135,10 +136,11 @@ fn buildSnappy(
         .HAVE_SYS_UIO_H = @intFromBool(posix),
         .HAVE_UNISTD_H = @intFromBool(posix),
         .HAVE_WINDOWS_H = @intFromBool(windows),
-        // SIMD fast paths are left off so the build is portable across targets.
-        .SNAPPY_HAVE_SSSE3 = 0,
-        .SNAPPY_HAVE_X86_CRC32 = 0,
-        .SNAPPY_HAVE_BMI2 = 0,
+        // x86 fast paths follow the target's CPU features (snappy.cc also uses AVX when the
+        // compiler defines __AVX__, which needs <immintrin.h>, which these flags pull in).
+        .SNAPPY_HAVE_SSSE3 = @intFromBool(x86 and t.cpu.has(.x86, .ssse3)),
+        .SNAPPY_HAVE_X86_CRC32 = @intFromBool(x86 and t.cpu.has(.x86, .sse4_2)),
+        .SNAPPY_HAVE_BMI2 = @intFromBool(x86 and t.cpu.has(.x86, .bmi2)),
         .SNAPPY_HAVE_NEON = 0,
         .SNAPPY_RVV_1 = 0,
         .SNAPPY_RVV_0_7 = 0,
