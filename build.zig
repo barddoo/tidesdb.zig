@@ -115,7 +115,6 @@ fn buildSnappy(
     const t = target.result;
     const windows = t.os.tag == .windows;
     const posix = !windows;
-    const x86 = t.cpu.arch == .x86_64;
 
     const config = b.addConfigHeader(.{
         .style = .{ .cmake = dep.path("cmake/config.h.in") },
@@ -136,11 +135,11 @@ fn buildSnappy(
         .HAVE_SYS_UIO_H = @intFromBool(posix),
         .HAVE_UNISTD_H = @intFromBool(posix),
         .HAVE_WINDOWS_H = @intFromBool(windows),
-        // x86 fast paths follow the target's CPU features (snappy.cc also uses AVX when the
-        // compiler defines __AVX__, which needs <immintrin.h>, which these flags pull in).
-        .SNAPPY_HAVE_SSSE3 = @intFromBool(x86 and t.cpu.has(.x86, .ssse3)),
-        .SNAPPY_HAVE_X86_CRC32 = @intFromBool(x86 and t.cpu.has(.x86, .sse4_2)),
-        .SNAPPY_HAVE_BMI2 = @intFromBool(x86 and t.cpu.has(.x86, .bmi2)),
+        // SIMD fast paths are off: whether the compiler enables a CPU feature does not always match
+        // what std.Target reports (e.g. -Dtarget=native-*), and a mismatch fails to compile.
+        .SNAPPY_HAVE_SSSE3 = 0,
+        .SNAPPY_HAVE_X86_CRC32 = 0,
+        .SNAPPY_HAVE_BMI2 = 0,
         .SNAPPY_HAVE_NEON = 0,
         .SNAPPY_RVV_1 = 0,
         .SNAPPY_RVV_0_7 = 0,
@@ -170,9 +169,23 @@ fn buildSnappy(
     lib.root_module.addConfigHeader(config);
     lib.root_module.addConfigHeader(stubs);
     lib.root_module.addIncludePath(dep.path("."));
+    // snappy.cc has an AVX copy path keyed on __AVX__ alone, but only includes <immintrin.h> when
+    // its SIMD config flags are on (which are off here). Compile it through a wrapper that
+    // includes the header exactly when the compiler enables AVX, whatever the target CPU is.
+    const wrapper = b.addWriteFiles().add("snappy_avx.cc",
+        \\#if defined(__x86_64__) && defined(__AVX__)
+        \\#include <immintrin.h>
+        \\#endif
+        \\#include <snappy.cc>
+        \\
+    );
+    lib.root_module.addCSourceFile(.{
+        .file = wrapper,
+        .flags = &.{ "-std=c++17", "-DHAVE_CONFIG_H", "-DNDEBUG" },
+    });
     lib.root_module.addCSourceFiles(.{
         .root = dep.path("."),
-        .files = &.{ "snappy.cc", "snappy-c.cc", "snappy-sinksource.cc", "snappy-stubs-internal.cc" },
+        .files = &.{ "snappy-c.cc", "snappy-sinksource.cc", "snappy-stubs-internal.cc" },
         .flags = &.{ "-std=c++17", "-DHAVE_CONFIG_H", "-DNDEBUG" },
     });
     lib.installHeader(dep.path("snappy-c.h"), "snappy-c.h");
