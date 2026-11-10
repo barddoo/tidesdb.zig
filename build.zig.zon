@@ -1,15 +1,33 @@
 .{
-    .name = .tidesdb_zig,
-    .version = "0.1.0",
-    .fingerprint = 0x91fcb4e0bb811764,
-    .minimum_zig_version = "0.16.0",
-    .dependencies = .{},
+    .name = .tidesdb,
+    .fingerprint = 0x3e60dbb6d579afeb,
+    .version = "10.2.1",
+    .minimum_zig_version = "0.17.1",
+    .dependencies = .{
+        .tidesdb = .{
+            .url = "git+https://github.com/tidesdb/tidesdb.git?ref=v10.2.1#abd8900c9c5fd8c673ca5481209ee99689bba779",
+            .hash = "N-V-__8AABwGtgHVKXkaDsyajbHngNJimUQWQOaz0aV77ed-",
+        },
+        .lz4 = .{
+            .lazy = true,
+            .url = "git+https://github.com/allyourcodebase/lz4.git#41f52ab227caf9d48cf88c89a4d2946caa12b102",
+            .hash = "lz4-1.10.0-6-ewyzw-4NAAAWDpY4xpiqr4LQhZQAC0x_rGnW2iPh6jk2",
+        },
+        .zstd = .{
+            .lazy = true,
+            .url = "git+https://github.com/allyourcodebase/zstd.git#4ccb01e6fceae86fb9fe36c60b8a103cdc058155",
+            .hash = "zstd-1.5.7-2-KEItkAMwAADNhCbGaImKrjXjnSA51jcqEbGCA3RasVZ9",
+        },
+        .snappy = .{
+            .lazy = true,
+            .url = "git+https://github.com/google/snappy.git#9c28114a38866f6deeaa826db918293bc28ae410",
+            .hash = "N-V-__8AABSJMwBOXGG9fyC5Qh-ckIPIwe9UxsdUveKkzezo",
+        },
+    },
     .paths = .{
+        "LICENSE",
         "build.zig",
         "build.zig.zon",
-        "src",
-        "tidesdb",
-        "LICENSE",
-        "README.md",
+        "test",
     },
 }

@@ -1,1 +1,2 @@
-tidesdb/* linguist-vendored
+*.zig text eol=lf
+*.zon text eol=lf

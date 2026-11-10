@@ -1,88 +1,53 @@
-# tidesdb-zig
+[![CI](https://github.com/barddoo/tidesdb-zig/actions/workflows/build.yml/badge.svg)](https://github.com/barddoo/tidesdb-zig/actions/workflows/build.yml)
 
-Zig bindings for [TidesDB](https://github.com/tidesdb/tidesdb) — an LSM-tree embedded key-value store with MVCC transactions.
+# TidesDB
 
-## Requirements
+This is [TidesDB](https://github.com/tidesdb/tidesdb), packaged for [Zig](https://ziglang.org/).
 
-- Zig 0.16.0+
+## Installation
 
-TidesDB C sources (v9.3.10) are vendored — no separate checkout needed.
+First, update your `build.zig.zon`:
 
-## Usage
-
-Run in your project:
-
-```sh
-zig fetch --save=tidesdb_zig git+https://github.com/barddoo/tidesdb-zig
+```
+# Initialize a `zig build` project if you haven't already
+zig init
+zig fetch --save git+https://github.com/barddoo/tidesdb-zig.git
 ```
 
-Then in `build.zig`:
+You can then import `tidesdb` in your `build.zig` with:
 
 ```zig
-const tdb_dep = b.dependency("tidesdb_zig", .{ .target = target, .optimize = optimize });
-exe.root_module.addImport("tidesdb", tdb_dep.module("tidesdb"));
+const tidesdb_dependency = b.dependency("tidesdb", .{
+    .target = target,
+    .optimize = optimize,
+});
+your_exe.root_module.linkLibrary(tidesdb_dependency.artifact("tidesdb"));
 ```
 
-## Example
+Headers are installed under `tidesdb/`, e.g. `#include <tidesdb/db.h>`.
+
+## Compression
+
+No compression backends are built by default (only `TDB_COMPRESS_NONE`). Enable them with build options:
+
+| Option    | Backend | Notes                                                      |
+| --------- | ------- | ---------------------------------------------------------- |
+| `-Dlz4`    | LZ4     | via [allyourcodebase/lz4](https://github.com/allyourcodebase/lz4)   |
+| `-Dzstd`   | Zstd    | via [allyourcodebase/zstd](https://github.com/allyourcodebase/zstd) |
+| `-Dsnappy` | Snappy  | built from [google/snappy](https://github.com/google/snappy); C++, links libc++ |
+
+From a dependent project:
 
 ```zig
-const tdb = @import("tidesdb");
-
-// Open database
-var config = tdb.DbConfig.default();
-config.db_path = "/tmp/mydb";
-const db = try tdb.Db.open(&config);
-defer db.close() catch {};
-
-// Create column family
-var cf_config = tdb.ColumnFamilyConfig.default();
-db.createColumnFamily("users", &cf_config) catch |err| switch (err) {
-    error.Exists => {},
-    else => return err,
-};
-const cf = db.getColumnFamily("users") orelse return error.NotFound;
-
-// Write
-const wtxn = try db.beginTxn();
-defer wtxn.deinit();
-try wtxn.put(cf, "alice", "25", 0);
-try wtxn.commit();
-
-// Read
-const rtxn = try db.beginTxn();
-defer rtxn.deinit();
-const val = try rtxn.get(cf, "alice");
-defer val.deinit(); // val is heap-allocated — must free
-std.debug.print("alice => {s}\n", .{val.bytes});
-
-// Iterate
-const iter = try rtxn.newIter(cf);
-defer iter.deinit();
-try iter.seekToFirst();
-while (iter.valid()) {
-    const kv = try iter.keyValue(); // borrowed — valid until next()/deinit()
-    std.debug.print("{s} => {s}\n", .{ kv.key, kv.value });
-    iter.next() catch break;
-}
+const tidesdb_dependency = b.dependency("tidesdb", .{
+    .target = target,
+    .optimize = optimize,
+    .lz4 = true,
+    .zstd = true,
+    .snappy = true,
+});
 ```
 
-## Ownership rules
-
-| API                                                                                   | Ownership                                                           |
-| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `txn.get()` → `OwnedSlice`                                                            | heap copy — call `.deinit()`                                        |
-| `iter.key()` / `iter.value()` / `iter.keyValue()` → `[]const u8` / `BorrowedKeyValue` | borrowed — valid until `next()`, `prev()`, `seek*()`, or `deinit()` |
-| `cf.getStats()` → `*Stats`                                                            | heap-allocated — call `ColumnFamily.freeStats(stats)`               |
-| `db.listColumnFamilies()` → `OwnedNames`                                              | heap-allocated — call `.deinit()`                                   |
-
-## Building
-
-```sh
-zig build          # compile
-zig build run      # run example
-zig build test     # run tests
-```
-
-## License
-
-MIT
+Backends are fetched lazily, so an option that is off downloads nothing. Check at runtime with
+`tidesdb_compression_available(TDB_COMPRESS_LZ4)` and select one per column family through its
+`encoding_pipeline`.

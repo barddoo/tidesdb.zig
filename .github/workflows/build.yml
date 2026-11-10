@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+
+      - name: Check Formatting
+        run: zig fmt --ast-check --check .
+
+      - name: Build
+        run: zig build --summary all
+
+      - name: Test
+        run: zig build test --summary all
+
+      - name: Test (all compression backends)
+        run: zig build test -Dlz4 -Dzstd -Dsnappy --summary all
+
+      - name: Cross Compile
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          zig build -Dtarget=native-linux-gnu -Dlz4 -Dzstd -Dsnappy
+          zig build -Dtarget=native-linux-musl -Dlz4 -Dzstd -Dsnappy
+          zig build -Dtarget=native-freebsd -Dlz4 -Dzstd -Dsnappy
+          zig build -Dtarget=native-netbsd -Dlz4 -Dzstd -Dsnappy
