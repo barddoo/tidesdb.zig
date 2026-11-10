@@ -11,7 +11,7 @@ First, update your `build.zig.zon`:
 ```
 # Initialize a `zig build` project if you haven't already
 zig init
-zig fetch --save git+https://github.com/barddoo/tidesdb-zig.git
+zig fetch --save git+https://github.com/barddoo/tidesdb.zig.git
 ```
 
 You can then import `tidesdb` in your `build.zig` with:
@@ -30,10 +30,10 @@ Headers are installed under `tidesdb/`, e.g. `#include <tidesdb/db.h>`.
 
 No compression backends are built by default (only `TDB_COMPRESS_NONE`). Enable them with build options:
 
-| Option    | Backend | Notes                                                      |
-| --------- | ------- | ---------------------------------------------------------- |
-| `-Dlz4`    | LZ4     | via [allyourcodebase/lz4](https://github.com/allyourcodebase/lz4)   |
-| `-Dzstd`   | Zstd    | via [allyourcodebase/zstd](https://github.com/allyourcodebase/zstd) |
+| Option     | Backend | Notes                                                                           |
+| ---------- | ------- | ------------------------------------------------------------------------------- |
+| `-Dlz4`    | LZ4     | via [allyourcodebase/lz4](https://github.com/allyourcodebase/lz4)               |
+| `-Dzstd`   | Zstd    | via [allyourcodebase/zstd](https://github.com/allyourcodebase/zstd)             |
 | `-Dsnappy` | Snappy  | built from [google/snappy](https://github.com/google/snappy); C++, links libc++ |
 
 From a dependent project:
